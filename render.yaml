@@ -1,0 +1,23 @@
+# Render deployment config for the backend API
+# https://render.com/docs/deploy-to-render
+
+services:
+  - type: web
+    name: fishing-101-api
+    env: node
+    region: oregon  # or frankfurt for EU
+    plan: free
+    buildCommand: npm install && npm run build:server
+    startCommand: NODE_ENV=production node dist/server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: CLIENT_URL
+        sync: false  # Set this to your Cloudflare Pages URL after deployment
+        # value: https://your-site.pages.dev
+    healthCheckPath: /health
+    autoDeploy: true
+    # SQLite database will be in-memory on Render free tier
+    # For persistent data, upgrade to a paid plan or use an external DB

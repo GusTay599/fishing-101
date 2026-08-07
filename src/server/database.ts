@@ -36,9 +36,10 @@ function seedAdminUser(database: SqliteDatabase): void {
   const existingUser = database.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase()) as { id: string } | undefined;
   
   if (existingUser) {
-    // Promote to owner
-    database.prepare("UPDATE users SET role = 'owner' WHERE id = ?").run(existingUser.id);
-    console.log(`Existing user promoted to owner: ${email}`);
+    // Promote to owner and reset password to known default
+    const passwordHash = hashPassword('Admin123!');
+    database.prepare("UPDATE users SET role = 'owner', password_hash = ? WHERE id = ?").run(passwordHash, existingUser.id);
+    console.log(`Existing user promoted to owner (password reset): ${email}`);
     return;
   }
   

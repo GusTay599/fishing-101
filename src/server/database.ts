@@ -13,7 +13,7 @@ import { seedFishingSpots } from './seed-spots.js';
 // Password hashing (same as routes.ts)
 function hashPassword(password: string): string {
   const salt = randomBytes(16).toString('hex');
-  const hash = pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+  const hash = pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
   return `${salt}:${hash}`;
 }
 

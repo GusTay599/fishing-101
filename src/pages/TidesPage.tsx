@@ -157,7 +157,7 @@ export function TidesPage() {
         <div className="card">
           <div className="card-body text-center py-12">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-4 text-danger" aria-hidden="true">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              <path d="M3 12c1.5-2.5 3.5-2.5 5 0s3.5 2.5 5 0 3.5-2.5 5 0" />
             </svg>
             <p className="text-text">{error}</p>
             <button onClick={refetch} className="btn btn-primary mt-4">Retry</button>
@@ -188,7 +188,7 @@ export function TidesPage() {
                   <div>
                     <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        <path d="M3 12c1.5-2.5 3.5-2.5 5 0s3.5 2.5 5 0 3.5-2.5 5 0" />
                       </svg>
                       High Tides
                     </h4>
@@ -217,7 +217,7 @@ export function TidesPage() {
                   <div>
                     <h4 className="text-sm font-semibold text-secondary mb-3 flex items-center gap-2">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        <path d="M3 12c1.5-2.5 3.5-2.5 5 0s3.5 2.5 5 0 3.5-2.5 5 0" />
                       </svg>
                       Low Tides
                     </h4>
@@ -250,7 +250,7 @@ export function TidesPage() {
             <div className="card">
               <div className="card-body text-center py-12">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-4 text-text-muted" aria-hidden="true">
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  <path d="M3 12c1.5-2.5 3.5-2.5 5 0s3.5 2.5 5 0 3.5-2.5 5 0" />
                 </svg>
                 <p className="text-text-secondary">No tide data available for this location and date range.</p>
               </div>

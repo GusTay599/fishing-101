@@ -21,6 +21,7 @@ interface ForumPost {
   body: string;
   pinned: number;
   locked: number;
+  warning: string | null;
   views: number;
   created_at: string;
   updated_at: string;
@@ -215,6 +216,56 @@ export function ForumPage() {
     } catch (e) { console.error(e); }
   };
 
+  // Admin handlers
+  const handleWarn = async (postId: string) => {
+    if (!user || user.role !== 'admin' && user.role !== 'owner') return;
+    const warning = prompt('Enter warning message (leave empty to remove warning):');
+    if (warning === null) return;
+    try {
+      await fetch(`${API_BASE}/forum/posts/${postId}/warn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, warning: warning || null }),
+      });
+      if (currentPost && currentPost.id === postId) {
+        setCurrentPost({ ...currentPost, warning: warning || null });
+      }
+      fetchPosts();
+    } catch (e) { console.error(e); }
+  };
+
+  const handlePin = async (postId: string, pinned: boolean) => {
+    if (!user || (user.role !== 'admin' && user.role !== 'owner')) return;
+    try {
+      await fetch(`${API_BASE}/forum/posts/${postId}/pin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, pinned }),
+      });
+      if (currentPost && currentPost.id === postId) {
+        setCurrentPost({ ...currentPost, pinned: pinned ? 1 : 0 });
+      }
+      fetchPosts();
+    } catch (e) { console.error(e); }
+  };
+
+  const handleLock = async (postId: string, locked: boolean) => {
+    if (!user || (user.role !== 'admin' && user.role !== 'owner')) return;
+    try {
+      await fetch(`${API_BASE}/forum/posts/${postId}/lock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, locked }),
+      });
+      if (currentPost && currentPost.id === postId) {
+        setCurrentPost({ ...currentPost, locked: locked ? 1 : 0 });
+      }
+      fetchPosts();
+    } catch (e) { console.error(e); }
+  };
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
+
   const getCategoryInfo = (catId: string) => categories.find(c => c.id === catId);
 
   // --- Post detail view ---
@@ -230,6 +281,14 @@ export function ForumPage() {
         </button>
 
         <div className="bg-bg-card rounded-xl shadow border border-border overflow-hidden">
+          {/* Warning banner */}
+          {currentPost.warning && (
+            <div className="bg-warning border-b border-warning px-6 py-3 flex items-center gap-2" style={{ backgroundColor: '#fef3c7', borderColor: '#fde68a' }}>
+              <span className="text-lg">⚠️</span>
+              <span className="text-sm font-medium" style={{ color: '#92400e' }}>{currentPost.warning}</span>
+            </div>
+          )}
+
           {/* Post header */}
           <div className="p-6 border-b border-border">
             <div className="flex items-start justify-between gap-4 mb-3">
@@ -246,14 +305,41 @@ export function ForumPage() {
                   <span className="text-xs font-medium text-text-muted">🔒 Locked</span>
                 ) : null}
               </div>
-              {user && user.id === currentPost.user_id && (
-                <button
-                  onClick={() => handleDeletePost(currentPost.id)}
-                  className="text-xs text-danger hover:underline flex-shrink-0"
-                >
-                  Delete
-                </button>
-              )}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Admin controls */}
+                {isAdmin && (
+                  <>
+                    <button
+                      onClick={() => handleWarn(currentPost.id)}
+                      className="text-xs text-warning hover:underline"
+                      title={currentPost.warning ? 'Edit/remove warning' : 'Add warning'}
+                    >
+                      {currentPost.warning ? '⚠️ Edit Warning' : '⚠️ Warn'}
+                    </button>
+                    <button
+                      onClick={() => handlePin(currentPost.id, !currentPost.pinned)}
+                      className="text-xs text-accent hover:underline"
+                    >
+                      {currentPost.pinned ? '📌 Unpin' : '📌 Pin'}
+                    </button>
+                    <button
+                      onClick={() => handleLock(currentPost.id, !currentPost.locked)}
+                      className="text-xs text-text-muted hover:underline"
+                    >
+                      {currentPost.locked ? '🔓 Unlock' : '🔒 Lock'}
+                    </button>
+                  </>
+                )}
+                {/* Owner or admin delete */}
+                {(user && (user.id === currentPost.user_id || isAdmin)) && (
+                  <button
+                    onClick={() => handleDeletePost(currentPost.id)}
+                    className="text-xs text-danger hover:underline"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
             <h1 className="text-2xl font-bold text-text mb-3">{currentPost.title}</h1>
             <div className="flex items-center gap-4 text-sm text-text-secondary">
@@ -495,6 +581,7 @@ export function ForumPage() {
                       )}
                       {post.pinned ? <span className="text-xs text-accent">📌</span> : null}
                       {post.locked ? <span className="text-xs text-text-muted">🔒</span> : null}
+                      {post.warning ? <span className="text-xs text-warning" title={post.warning}>⚠️</span> : null}
                     </div>
                     <h3 className="text-base font-semibold text-text group-hover:text-primary transition-colors mb-1">
                       {post.title}

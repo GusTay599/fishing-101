@@ -2,7 +2,7 @@
 
 import { Router, Request, Response } from 'express';
 import { randomBytes, pbkdf2Sync } from 'crypto';
-import { db, getCatches, createCatch, getCatch, updateCatch, deleteCatch, getCatchStats, getNearbyTideStations, upsertTideStation, getCachedWeather, setCachedWeather, getCachedTide, setCachedTide, getFishingSpots, createFishingSpot, FishingSpotRow, createUser, getUserByEmail, getUserById, updateUserPrefs, userToPublic, FORUM_CATEGORIES, createForumPost, getForumPosts, getForumPost, deleteForumPost, getForumComments, createForumComment, deleteForumComment, toggleForumLike, hasUserLiked, getForumStats, ForumCommentRow } from '../database';
+import { db, getCatches, createCatch, getCatch, updateCatch, deleteCatch, getCatchStats, getNearbyTideStations, upsertTideStation, getCachedWeather, setCachedWeather, getCachedTide, setCachedTide, getFishingSpots, createFishingSpot, FishingSpotRow, createUser, getUserByEmail, getUserById, updateUserPrefs, userToPublic, FORUM_CATEGORIES, createForumPost, getForumPosts, getForumPost, deleteForumPost, setForumPostWarning, setForumPostPinned, setForumPostLocked, isAdmin, getForumComments, createForumComment, deleteForumComment, toggleForumLike, hasUserLiked, getForumStats, ForumCommentRow } from '../database';
 import {
   fetchNoaaStations,
   fetchTidePredictions,
@@ -729,7 +729,7 @@ router.get('/forum/posts/:id', async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/forum/posts/:id - Delete a post
+// DELETE /api/forum/posts/:id - Delete a post (owner or admin)
 router.delete('/forum/posts/:id', async (req: Request, res: Response) => {
   try {
     const postId = String(req.params.id);
@@ -738,7 +738,8 @@ router.delete('/forum/posts/:id', async (req: Request, res: Response) => {
     if (!post) {
       return res.status(404).json({ success: false, error: 'Post not found' });
     }
-    if (post.user_id !== userId) {
+    const userAdmin = userId ? isAdmin(userId) : false;
+    if (post.user_id !== userId && !userAdmin) {
       return res.status(403).json({ success: false, error: 'Not authorized' });
     }
 
@@ -747,6 +748,74 @@ router.delete('/forum/posts/:id', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error deleting forum post:', error);
     res.status(500).json({ success: false, error: 'Failed to delete post' });
+  }
+});
+
+// POST /api/forum/posts/:id/warn - Admin: set warning on a post
+router.post('/forum/posts/:id/warn', async (req: Request, res: Response) => {
+  try {
+    const postId = String(req.params.id);
+    const { userId, warning } = req.body;
+    if (!userId) return res.status(400).json({ success: false, error: 'Missing userId' });
+    if (!isAdmin(userId)) return res.status(403).json({ success: false, error: 'Admin only' });
+
+    const post = getForumPost(postId);
+    if (!post) return res.status(404).json({ success: false, error: 'Post not found' });
+
+    setForumPostWarning(postId, warning || null);
+    res.json({ success: true, message: 'Warning updated' });
+  } catch (error) {
+    console.error('Error setting warning:', error);
+    res.status(500).json({ success: false, error: 'Failed to set warning' });
+  }
+});
+
+// POST /api/forum/posts/:id/pin - Admin: toggle pin
+router.post('/forum/posts/:id/pin', async (req: Request, res: Response) => {
+  try {
+    const postId = String(req.params.id);
+    const { userId, pinned } = req.body;
+    if (!userId) return res.status(400).json({ success: false, error: 'Missing userId' });
+    if (!isAdmin(userId)) return res.status(403).json({ success: false, error: 'Admin only' });
+
+    const post = getForumPost(postId);
+    if (!post) return res.status(404).json({ success: false, error: 'Post not found' });
+
+    setForumPostPinned(postId, pinned);
+    res.json({ success: true, message: pinned ? 'Post pinned' : 'Post unpinned' });
+  } catch (error) {
+    console.error('Error pinning post:', error);
+    res.status(500).json({ success: false, error: 'Failed to pin post' });
+  }
+});
+
+// POST /api/forum/posts/:id/lock - Admin: toggle lock
+router.post('/forum/posts/:id/lock', async (req: Request, res: Response) => {
+  try {
+    const postId = String(req.params.id);
+    const { userId, locked } = req.body;
+    if (!userId) return res.status(400).json({ success: false, error: 'Missing userId' });
+    if (!isAdmin(userId)) return res.status(403).json({ success: false, error: 'Admin only' });
+
+    const post = getForumPost(postId);
+    if (!post) return res.status(404).json({ success: false, error: 'Post not found' });
+
+    setForumPostLocked(postId, locked);
+    res.json({ success: true, message: locked ? 'Post locked' : 'Post unlocked' });
+  } catch (error) {
+    console.error('Error locking post:', error);
+    res.status(500).json({ success: false, error: 'Failed to lock post' });
+  }
+});
+
+// GET /api/forum/admin/check - Check if user is admin
+router.get('/forum/admin/check', async (req: Request, res: Response) => {
+  try {
+    const userId = req.query.userId ? String(req.query.userId) : null;
+    if (!userId) return res.json({ success: true, data: { isAdmin: false } });
+    res.json({ success: true, data: { isAdmin: isAdmin(userId) } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to check admin status' });
   }
 });
 

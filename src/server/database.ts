@@ -6,14 +6,45 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
+import { randomBytes, pbkdf2Sync } from 'crypto';
 
 import { seedFishingSpots } from './seed-spots.js';
+
+// Password hashing (same as routes.ts)
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex');
+  const hash = pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+  return `${salt}:${hash}`;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DB_DIR = path.join(__dirname, '../../data');
 const DB_PATH = path.join(DB_DIR, 'fishing_catches.db');
+
+// Seed admin owner account
+function seedAdminUser(database: SqliteDatabase): void {
+  const existing = database.prepare("SELECT id FROM users WHERE role = 'owner'").get();
+  if (existing) return; // already have an owner
+  
+  const id = uuidv4();
+  const email = 'admin@fishing-101.co.uk';
+  const name = 'Site Owner';
+  const passwordHash = hashPassword('Admin123!');
+  
+  database.prepare(`
+    INSERT INTO users (id, email, name, password_hash, role, preferences)
+    VALUES (?, ?, ?, ?, 'owner', ?)
+  `).run(id, email, name, passwordHash, JSON.stringify({
+    units: 'imperial',
+    theme: 'system',
+    notifications: { tide_alerts: true, solunar_alerts: true, weather_alerts: false },
+    default_water_type: 'saltwater',
+  }));
+  
+  console.log(`Admin owner created: ${email}`);
+}
 
 export function initDatabase(): SqliteDatabase {
   // Ensure data directory exists
@@ -117,6 +148,7 @@ export function initDatabase(): SqliteDatabase {
       email TEXT UNIQUE NOT NULL,
       name TEXT NOT NULL,
       password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
       avatar_url TEXT,
       preferences TEXT, -- JSON
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -134,6 +166,7 @@ export function initDatabase(): SqliteDatabase {
       body TEXT NOT NULL,
       pinned INTEGER NOT NULL DEFAULT 0,
       locked INTEGER NOT NULL DEFAULT 0,
+      warning TEXT,
       views INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -181,8 +214,23 @@ export function initDatabase(): SqliteDatabase {
     db.exec(`ALTER TABLE fishing_spots ADD COLUMN image_urls TEXT`);
   }
   
+  // Migration: add role to users if missing
+  const userColumns = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+  if (!userColumns.some(c => c.name === 'role')) {
+    db.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'`);
+  }
+  
+  // Migration: add warning to forum_posts if missing
+  const postColumns = db.prepare("PRAGMA table_info(forum_posts)").all() as { name: string }[];
+  if (!postColumns.some(c => c.name === 'warning')) {
+    db.exec(`ALTER TABLE forum_posts ADD COLUMN warning TEXT`);
+  }
+  
   // Seed UK fishing spots
   seedFishingSpots(db);
+  
+  // Seed admin owner account
+  seedAdminUser(db);
   
   return db;
 }
@@ -638,6 +686,7 @@ export interface UserRow {
   email: string;
   name: string;
   password_hash: string;
+  role: string;
   avatar_url: string | null;
   preferences: string | null; // JSON
   created_at: string;
@@ -648,6 +697,7 @@ export interface UserPublic {
   id: string;
   email: string;
   name: string;
+  role: string;
   avatar_url: string | null;
   preferences: any;
   created_at: string;
@@ -693,6 +743,7 @@ export function userToPublic(user: UserRow): UserPublic {
     id: user.id,
     email: user.email,
     name: user.name,
+    role: user.role,
     avatar_url: user.avatar_url,
     preferences: user.preferences ? JSON.parse(user.preferences) : null,
     created_at: user.created_at,
@@ -717,6 +768,7 @@ export interface ForumPostRow {
   body: string;
   pinned: number;
   locked: number;
+  warning: string | null;
   views: number;
   created_at: string;
   updated_at: string;
@@ -800,6 +852,26 @@ export function deleteForumPost(id: string): boolean {
   db.prepare('DELETE FROM forum_likes WHERE post_id = ?').run(id);
   const result = db.prepare('DELETE FROM forum_posts WHERE id = ?').run(id);
   return result.changes > 0;
+}
+
+export function setForumPostWarning(id: string, warning: string | null): boolean {
+  const result = db.prepare('UPDATE forum_posts SET warning = ?, updated_at = datetime(\'now\') WHERE id = ?').run(warning, id);
+  return result.changes > 0;
+}
+
+export function setForumPostPinned(id: string, pinned: boolean): boolean {
+  const result = db.prepare('UPDATE forum_posts SET pinned = ?, updated_at = datetime(\'now\') WHERE id = ?').run(pinned ? 1 : 0, id);
+  return result.changes > 0;
+}
+
+export function setForumPostLocked(id: string, locked: boolean): boolean {
+  const result = db.prepare('UPDATE forum_posts SET locked = ?, updated_at = datetime(\'now\') WHERE id = ?').run(locked ? 1 : 0, id);
+  return result.changes > 0;
+}
+
+export function isAdmin(userId: string): boolean {
+  const user = getUserById(userId);
+  return user !== null && (user.role === 'admin' || user.role === 'owner');
 }
 
 export function getForumComments(postId: string): Array<ForumCommentRow & { author_name: string }> {

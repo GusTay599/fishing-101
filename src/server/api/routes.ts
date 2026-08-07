@@ -225,6 +225,17 @@ router.post('/catches', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/catches/stats - Get catch statistics (must be before /catches/:id)
+router.get('/catches/stats', async (req: Request, res: Response) => {
+  try {
+    const stats = getCatchStats();
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch statistics' });
+  }
+});
+
 // GET /api/catches/:id - Get a single catch
 router.get('/catches/:id', async (req: Request, res: Response) => {
   try {
@@ -286,17 +297,6 @@ router.delete('/catches/:id', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error deleting catch:', error);
     res.status(500).json({ success: false, error: 'Failed to delete catch' });
-  }
-});
-
-// GET /api/catches/stats - Get catch statistics
-router.get('/catches/stats', async (req: Request, res: Response) => {
-  try {
-    const stats = getCatchStats();
-    res.json({ success: true, data: stats });
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch statistics' });
   }
 });
 

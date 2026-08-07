@@ -1,5 +1,5 @@
 // Stats Page
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useCatchStats, useCatches } from '../hooks/useApi';
 import { format, parseISO, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
@@ -7,11 +7,13 @@ export function StatsPage() {
   const [dateRange, setDateRange] = useState<'all' | 'year' | '6months' | '3months'>('all');
   
   const { data: stats, loading: statsLoading, error: statsError } = useCatchStats();
-  const { data: catchesData, loading: catchesLoading } = useCatches({
+  const catchesParams = useMemo(() => ({
     page: 1,
     page_size: 1000,
     start_date: dateRange !== 'all' ? format(subMonths(new Date(), dateRange === 'year' ? 12 : dateRange === '6months' ? 6 : 3), 'yyyy-MM-dd') : undefined,
-  });
+  }), [dateRange]);
+
+  const { data: catchesData, loading: catchesLoading } = useCatches(catchesParams);
 
   const catches = catchesData?.data || [];
 

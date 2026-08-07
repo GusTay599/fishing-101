@@ -25,11 +25,24 @@ const DB_PATH = path.join(DB_DIR, 'fishing_catches.db');
 
 // Seed admin owner account
 function seedAdminUser(database: SqliteDatabase): void {
-  const existing = database.prepare("SELECT id FROM users WHERE role = 'owner'").get();
-  if (existing) return; // already have an owner
-  
-  const id = uuidv4();
   const email = 'admin@fishing-101.co.uk';
+  
+  // Check if owner already exists
+  const existingOwner = database.prepare("SELECT id FROM users WHERE role = 'owner'").get();
+  if (existingOwner) return;
+  
+  // Check if the admin email user exists (registered via UI)
+  const existingUser = database.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase()) as { id: string } | undefined;
+  
+  if (existingUser) {
+    // Promote to owner
+    database.prepare("UPDATE users SET role = 'owner' WHERE id = ?").run(existingUser.id);
+    console.log(`Existing user promoted to owner: ${email}`);
+    return;
+  }
+  
+  // Create new owner account
+  const id = uuidv4();
   const name = 'Site Owner';
   const passwordHash = hashPassword('Admin123!');
   
@@ -703,7 +716,7 @@ export interface UserPublic {
   created_at: string;
 }
 
-export function createUser(userData: { id: string; email: string; name: string; password_hash: string }): UserRow {
+export function createUser(userData: { id: string; email: string; name: string; password_hash: string; role?: string }): UserRow {
   const defaultPrefs = JSON.stringify({
     units: 'imperial',
     theme: 'system',
@@ -711,11 +724,12 @@ export function createUser(userData: { id: string; email: string; name: string; 
     default_water_type: 'freshwater',
   });
   
+  const role = userData.role || 'user';
   const stmt = db.prepare(`
-    INSERT INTO users (id, email, name, password_hash, preferences, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    INSERT INTO users (id, email, name, password_hash, role, preferences, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   `);
-  stmt.run(userData.id, userData.email.toLowerCase(), userData.name, userData.password_hash, defaultPrefs);
+  stmt.run(userData.id, userData.email.toLowerCase(), userData.name, userData.password_hash, role, defaultPrefs);
   
   return getUserById(userData.id)!;
 }

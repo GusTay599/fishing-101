@@ -27,26 +27,24 @@ const DB_DIR = path.dirname(DB_PATH);
 // Seed admin owner account
 function seedAdminUser(database: SqliteDatabase): void {
   const email = 'admin@fishing-101.co.uk';
+  const passwordHash = hashPassword('JohnPaulDavid01');
   
-  // Check if owner already exists
-  const existingOwner = database.prepare("SELECT id FROM users WHERE role = 'owner'").get();
-  if (existingOwner) return;
-  
-  // Check if the admin email user exists (registered via UI)
-  const existingUser = database.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase()) as { id: string } | undefined;
+  // Check if the admin email user exists
+  const existingUser = database.prepare("SELECT id, role FROM users WHERE email = ?").get(email.toLowerCase()) as { id: string; role: string } | undefined;
   
   if (existingUser) {
-    // Promote to owner and reset password to known default
-    const passwordHash = hashPassword('Admin123!');
+    // Ensure role is owner and password is correct
+    const updates: string[] = [];
+    if (existingUser.role !== 'owner') updates.push("role = 'owner'");
+    // Always reset password to ensure it's correct
     database.prepare("UPDATE users SET role = 'owner', password_hash = ? WHERE id = ?").run(passwordHash, existingUser.id);
-    console.log(`Existing user promoted to owner (password reset): ${email}`);
+    console.log(`Admin user ensured: ${email} (role=owner, password reset)`);
     return;
   }
   
   // Create new owner account
   const id = uuidv4();
   const name = 'Site Owner';
-  const passwordHash = hashPassword('Admin123!');
   
   database.prepare(`
     INSERT INTO users (id, email, name, password_hash, role, preferences)

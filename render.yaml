@@ -5,19 +5,22 @@ services:
   - type: web
     name: fishing-101-api
     env: node
-    region: oregon  # or frankfurt for EU
-    plan: free
+    region: oregon
+    plan: starter
     buildCommand: npm install && npm run build:server
-    startCommand: NODE_ENV=production node dist/server/index.js
+    startCommand: npx tsx src/server/index.ts
+    disk:
+      name: fishing-101-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 4000
       - key: CLIENT_URL
-        sync: false  # Set this to your Cloudflare Pages URL after deployment
-        # value: https://your-site.pages.dev
+        value: https://fishing-101.co.uk
+      - key: DATABASE_PATH
+        value: /data/fishing-catches.db
     healthCheckPath: /health
     autoDeploy: true
-    # SQLite database will be in-memory on Render free tier
-    # For persistent data, upgrade to a paid plan or use an external DB
